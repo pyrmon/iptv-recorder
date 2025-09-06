@@ -54,7 +54,12 @@ The developers of this software are not responsible for any misuse or legal issu
 The application exposes REST endpoints for:
 - Managing channels (`/api/channels`)
 - Scheduling recordings (`/api/recordings`)
+- Viewing past recordings (`/api/past-recordings`)
 - Health monitoring (`/actuator/health`)
+
+### Past Recordings API
+- `GET /api/past-recordings` - Get all past recordings
+- `GET /api/past-recordings/channel/{channelName}` - Get past recordings for a specific channel
 
 ## Configuration
 
