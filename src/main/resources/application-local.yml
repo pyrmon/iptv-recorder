@@ -1,0 +1,6 @@
+recorder:
+  recording-folder-prefix: ./recordings/
+
+application:
+  security:
+    api-key: ${API_KEY}

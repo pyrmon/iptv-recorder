@@ -1,0 +1,49 @@
+# Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Application data
+data/
+recordings/
+*.sqlite
+*.db
+
+# Personal deployment files
+.env
+compose.yml
+deploy.sh
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Media files
+*.mkv
+*.mp4
+*.avi
+*.ts
+*.m3u8
