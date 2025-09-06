@@ -11,4 +11,5 @@ public interface ScheduleRepository extends CrudRepository<RecordingSchedule, Lo
 
     List<RecordingSchedule> findByTriggeredFalse();
     List<RecordingSchedule> findByTriggeredTrue();
+    List<RecordingSchedule> findByChannel(String channel);
 }
