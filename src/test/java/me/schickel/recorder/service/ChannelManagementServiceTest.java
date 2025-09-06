@@ -3,8 +3,10 @@ package me.schickel.recorder.service;
 import me.schickel.recorder.dto.request.ChannelRequest;
 import me.schickel.recorder.dto.response.ChannelResponse;
 import me.schickel.recorder.entity.ChannelUrl;
+import me.schickel.recorder.entity.RecordingSchedule;
 import me.schickel.recorder.mapper.ChannelMapper;
 import me.schickel.recorder.repository.ChannelRepository;
+import me.schickel.recorder.repository.ScheduleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,12 +31,16 @@ class ChannelManagementServiceTest {
     private ChannelRepository channelRepository;
     @Mock
     private ChannelMapper channelMapper;
+    @Mock
+    private ScheduleRepository scheduleRepository;
+    @Mock
+    private PastRecordingService pastRecordingService;
 
     private ChannelManagementService service;
 
     @BeforeEach
     void setUp() {
-        service = new ChannelManagementService(channelRepository, channelMapper);
+        service = new ChannelManagementService(channelRepository, channelMapper, scheduleRepository, pastRecordingService);
     }
 
     @Test
@@ -128,12 +134,16 @@ class ChannelManagementServiceTest {
     @Test
     void deleteChannelLink_shouldDeleteAndReturnName_whenChannelExists() {
         ChannelUrl entity = createChannelEntity(1L, "Test Channel", "http://test.url");
+        RecordingSchedule recording = mock(RecordingSchedule.class);
         
         when(channelRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(scheduleRepository.findByChannel("Test Channel")).thenReturn(List.of(recording));
 
         String result = service.deleteChannelLink(1L);
 
         assertThat(result).isEqualTo("Test Channel");
+        verify(pastRecordingService).saveRecordingHistory(recording);
+        verify(scheduleRepository).deleteAll(List.of(recording));
         verify(channelRepository).deleteById(1L);
     }
 

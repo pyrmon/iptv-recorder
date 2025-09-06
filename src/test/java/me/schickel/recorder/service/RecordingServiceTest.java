@@ -31,13 +31,15 @@ class RecordingServiceTest {
     @Mock
     private FfmpegService ffmpegService;
     @Mock
+    private PastRecordingService pastRecordingService;
+    @Mock
     private ExecutorService executorService;
 
     private RecordingService recordingService;
 
     @BeforeEach
     void setUp() {
-        recordingService = new RecordingService(scheduleRepository, executorConfig, timeUtils, ffmpegService);
+        recordingService = new RecordingService(scheduleRepository, executorConfig, timeUtils, ffmpegService, pastRecordingService);
         ReflectionTestUtils.setField(recordingService, "allowedSimultaneousStreams", 2);
         when(executorConfig.executorService()).thenReturn(executorService);
     }
@@ -126,6 +128,7 @@ class RecordingServiceTest {
 
         recordingService.removeTriggeredRecordings();
 
+        verify(pastRecordingService).saveRecordingHistory(recording);
         verify(scheduleRepository).deleteAll(List.of(recording));
     }
 
