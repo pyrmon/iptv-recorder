@@ -2,7 +2,6 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
 
@@ -72,11 +71,7 @@ jobs:
             -t ${{ secrets.DOCKER_USERNAME }}/iptv-recorder:latest \
             --push .
 
-      - name: Build Docker image for non-main branches
-        if: github.ref != 'refs/heads/main'
-        run: |
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          docker build -t iptv-recorder:${VERSION} .
+
 
       - name: Create release tag
         if: github.ref == 'refs/heads/main' && env.NEW_VERSION != '' && !contains(github.event.head_commit.message, 'Release version')

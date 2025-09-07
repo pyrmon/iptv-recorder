@@ -28,6 +28,7 @@ public class RecordingService {
     private final ExecutorConfig executorConfig;
     private final TimeUtils timeUtils;
     private final FfmpegService ffmpegService;
+    private final PastRecordingService pastRecordingService;
     private static final Logger logger = LoggerFactory.getLogger(RecordingService.class);
 
     @EventListener(ApplicationReadyEvent.class)
@@ -100,6 +101,7 @@ public class RecordingService {
             LocalDateTime endTime = timeUtils.parseStringToLocalDateTime(recording.getEndTime());
             if (now.isAfter(endTime)) {
                 logger.info("Removing triggered recording {}", recording.getFileName());
+                pastRecordingService.saveRecordingHistory(recording);
                 recordingsToDelete.add(recording);
             }
         }

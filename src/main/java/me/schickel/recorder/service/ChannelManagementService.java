@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import me.schickel.recorder.dto.request.ChannelRequest;
 import me.schickel.recorder.dto.response.ChannelResponse;
 import me.schickel.recorder.entity.ChannelUrl;
+import me.schickel.recorder.entity.RecordingSchedule;
 import me.schickel.recorder.mapper.ChannelMapper;
 import me.schickel.recorder.repository.ChannelRepository;
+import me.schickel.recorder.repository.ScheduleRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +18,8 @@ public class ChannelManagementService {
 
     private final ChannelRepository channelRepository;
     private final ChannelMapper channelMapper;
+    private final ScheduleRepository scheduleRepository;
+    private final PastRecordingService pastRecordingService;
 
     public void createChannelLink(ChannelRequest request) {
         ChannelUrl entity = channelMapper.toEntity(request);
@@ -47,6 +51,11 @@ public class ChannelManagementService {
     public String deleteChannelLink(Long id) {
         return channelRepository.findById(id)
             .map(channel -> {
+                // Save associated recordings to history before deleting channel
+                List<RecordingSchedule> channelRecordings = scheduleRepository.findByChannel(channel.getName());
+                channelRecordings.forEach(pastRecordingService::saveRecordingHistory);
+                scheduleRepository.deleteAll(channelRecordings);
+                
                 channelRepository.deleteById(id);
                 return channel.getName();
             })
