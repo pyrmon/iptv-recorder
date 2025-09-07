@@ -6,6 +6,8 @@ import me.schickel.recorder.entity.PastRecording;
 import me.schickel.recorder.entity.RecordingSchedule;
 import me.schickel.recorder.repository.PastRecordingRepository;
 import me.schickel.recorder.util.TimeUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PastRecordingService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PastRecordingService.class);
     private final PastRecordingRepository pastRecordingRepository;
     private final TimeUtils timeUtils;
 
@@ -29,20 +32,28 @@ public class PastRecordingService {
         pastRecording.setWasTriggered(recording.isTriggered());
         
         pastRecordingRepository.save(pastRecording);
+        String sanitizedFileName = recording.getFileName() != null ? 
+            recording.getFileName().replaceAll("[\r\n]", "_") : "unknown";
+        logger.info("Saved recording history for {}", sanitizedFileName);
     }
 
     public List<PastRecordingResponse> getAllPastRecordings() {
-        return pastRecordingRepository.findAllByOrderByRecordedAtDesc()
+        List<PastRecordingResponse> recordings = pastRecordingRepository.findAllByOrderByRecordedAtDesc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
+        logger.info("Retrieved {} past recordings from database", recordings.size());
+        return recordings;
     }
 
     public List<PastRecordingResponse> getPastRecordingsByChannel(String channelName) {
-        return pastRecordingRepository.findByChannelNameOrderByRecordedAtDesc(channelName)
+        List<PastRecordingResponse> recordings = pastRecordingRepository.findByChannelNameOrderByRecordedAtDesc(channelName)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+        String sanitizedChannelName = channelName != null ? channelName.replaceAll("[\r\n]", "_") : "unknown";
+        logger.info("Retrieved {} past recordings for channel {} from database", recordings.size(), sanitizedChannelName);
+        return recordings;
     }
 
     private PastRecordingResponse toResponse(PastRecording entity) {
