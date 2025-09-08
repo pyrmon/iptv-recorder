@@ -25,5 +25,6 @@ CREATE TABLE past_recordings
     start_time   TEXT NOT NULL,
     end_time     TEXT NOT NULL,
     recorded_at  TEXT NOT NULL,
-    was_triggered INT NOT NULL DEFAULT 0
+    was_triggered INT NOT NULL DEFAULT 0,
+    completion_status TEXT DEFAULT 'COMPLETED'
 );
