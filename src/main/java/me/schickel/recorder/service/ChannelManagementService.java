@@ -53,7 +53,6 @@ public class ChannelManagementService {
             .map(channel -> {
                 // Save associated recordings to history before deleting channel
                 List<RecordingSchedule> channelRecordings = scheduleRepository.findByChannel(channel.getName());
-                channelRecordings.forEach(pastRecordingService::saveRecordingHistory);
                 scheduleRepository.deleteAll(channelRecordings);
                 
                 channelRepository.deleteById(id);
