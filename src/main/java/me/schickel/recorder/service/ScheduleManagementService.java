@@ -22,6 +22,7 @@ public class ScheduleManagementService {
     private final RecordingMapper recordingMapper;
     private final ChannelManagementService channelManagementService;
     private final MiscUtils miscUtils;
+    private final PastRecordingService pastRecordingService;
 
     public void saveSchedule(RecordingScheduleRequest request) {
         validateAndProcessRequest(request);
@@ -38,9 +39,10 @@ public class ScheduleManagementService {
     }
 
     public void deleteSchedule(Long id) {
-        if (!scheduleRepository.existsById(id)) {
-            throw new IllegalArgumentException("Schedule not found with id: " + id);
-        }
+        RecordingSchedule schedule = scheduleRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Schedule not found with id: " + id));
+        
+        pastRecordingService.saveRecordingHistory(schedule, "DELETED_BY_USER");
         scheduleRepository.deleteById(id);
     }
 

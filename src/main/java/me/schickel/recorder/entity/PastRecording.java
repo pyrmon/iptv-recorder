@@ -35,4 +35,6 @@ public class PastRecording {
 
     @Column(name = "was_triggered", nullable = false)
     private boolean wasTriggered;
+    @Column(name = "completion_status")
+    private String completionStatus;
 }

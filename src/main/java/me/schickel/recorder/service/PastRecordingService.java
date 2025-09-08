@@ -21,7 +21,7 @@ public class PastRecordingService {
     private final PastRecordingRepository pastRecordingRepository;
     private final TimeUtils timeUtils;
 
-    public void saveRecordingHistory(RecordingSchedule recording) {
+    public void saveRecordingHistory(RecordingSchedule recording, String completionStatus) {
         PastRecording pastRecording = new PastRecording();
         pastRecording.setChannelName(recording.getChannel());
         pastRecording.setM3uUrl(recording.getM3uUrl());
@@ -30,11 +30,12 @@ public class PastRecordingService {
         pastRecording.setEndTime(timeUtils.parseStringToLocalDateTime(recording.getEndTime()));
         pastRecording.setRecordedAt(LocalDateTime.now());
         pastRecording.setWasTriggered(recording.isTriggered());
+        pastRecording.setCompletionStatus(completionStatus != null ? completionStatus : "COMPLETED");
         
         pastRecordingRepository.save(pastRecording);
         String sanitizedFileName = recording.getFileName() != null ? 
             recording.getFileName().replaceAll("[\r\n]", "_") : "unknown";
-        logger.info("Saved recording history for {}", sanitizedFileName);
+        logger.info("Saved recording history for {} with status: {}", sanitizedFileName, completionStatus);
     }
 
     public List<PastRecordingResponse> getAllPastRecordings() {
@@ -62,10 +63,11 @@ public class PastRecordingService {
         response.setChannelName(entity.getChannelName());
         response.setM3uUrl(entity.getM3uUrl());
         response.setFileName(entity.getFileName());
-        response.setStartTime(entity.getStartTime());
-        response.setEndTime(entity.getEndTime());
-        response.setRecordedAt(entity.getRecordedAt());
+        response.setStartTime(timeUtils.parseLocalDateTimeToString(entity.getStartTime()));
+        response.setEndTime(timeUtils.parseLocalDateTimeToString(entity.getEndTime()));
+        response.setRecordedAt(timeUtils.parseLocalDateTimeToString(entity.getRecordedAt()));
         response.setWasTriggered(entity.isWasTriggered());
+        response.setCompletionStatus(entity.getCompletionStatus());
         return response;
     }
 }

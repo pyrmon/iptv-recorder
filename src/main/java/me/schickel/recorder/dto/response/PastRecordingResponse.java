@@ -12,8 +12,9 @@ public class PastRecordingResponse {
     private String channelName;
     private String m3uUrl;
     private String fileName;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private LocalDateTime recordedAt;
+    private String startTime;
+    private String endTime;
+    private String recordedAt;
     private boolean wasTriggered;
+    private String completionStatus;
 }
