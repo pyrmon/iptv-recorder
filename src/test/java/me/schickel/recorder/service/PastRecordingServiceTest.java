@@ -45,7 +45,7 @@ class PastRecordingServiceTest {
         when(timeUtils.parseStringToLocalDateTime(recording.getStartTime())).thenReturn(startTime);
         when(timeUtils.parseStringToLocalDateTime(recording.getEndTime())).thenReturn(endTime);
 
-        service.saveRecordingHistory(recording);
+        service.saveRecordingHistory(recording, "COMPLETED");
 
         verify(pastRecordingRepository).save(any(PastRecording.class));
     }
@@ -99,6 +99,8 @@ class PastRecordingServiceTest {
         when(recording.getEndTime()).thenReturn(LocalDateTime.of(2025, 1, 1, 12, 0));
         when(recording.getRecordedAt()).thenReturn(LocalDateTime.of(2025, 1, 1, 12, 0));
         when(recording.isWasTriggered()).thenReturn(true);
+        when(recording.getCompletionStatus()).thenReturn("COMPLETED");
+        when(timeUtils.parseLocalDateTimeToString(any(LocalDateTime.class))).thenReturn("10:00 01/01/2025");
         return recording;
     }
 }

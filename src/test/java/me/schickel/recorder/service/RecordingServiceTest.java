@@ -128,7 +128,7 @@ class RecordingServiceTest {
 
         recordingService.removeTriggeredRecordings();
 
-        verify(pastRecordingService).saveRecordingHistory(recording);
+        verify(pastRecordingService).saveRecordingHistory(recording, "COMPLETED");
         verify(scheduleRepository).deleteAll(List.of(recording));
     }
 

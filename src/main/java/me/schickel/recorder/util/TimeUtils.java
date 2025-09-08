@@ -48,6 +48,10 @@ public class TimeUtils implements Comparator<RecordingSchedule> {
         return String.valueOf(secondsBetween);
     }
 
+    public String parseLocalDateTimeToString(LocalDateTime dateTime) {
+        return dateTime.format(formatter);
+    }
+
     @Override
     public int compare(RecordingSchedule o1, RecordingSchedule o2) {
         LocalDateTime startTime1 = LocalDateTime.parse(o1.getStartTime(), formatter);

@@ -101,7 +101,7 @@ public class RecordingService {
             LocalDateTime endTime = timeUtils.parseStringToLocalDateTime(recording.getEndTime());
             if (now.isAfter(endTime)) {
                 logger.info("Removing triggered recording {}", recording.getFileName());
-                pastRecordingService.saveRecordingHistory(recording);
+                pastRecordingService.saveRecordingHistory(recording, "COMPLETED");
                 recordingsToDelete.add(recording);
             }
         }

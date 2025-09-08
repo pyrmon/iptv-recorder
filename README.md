@@ -43,7 +43,8 @@ The developers of this software are not responsible for any misuse or legal issu
 
 1. Copy `compose.example.yml` to `compose.yml`
 2. Configure your environment variables in `.env`
-3. Build and run:
+3. **Important**: Update the Dockerfile to set your local timezone for accurate recording scheduling
+4. Build and run:
    ```bash
    docker build -t iptv-recorder .
    docker compose up -d

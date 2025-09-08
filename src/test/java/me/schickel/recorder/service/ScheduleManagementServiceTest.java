@@ -34,12 +34,14 @@ class ScheduleManagementServiceTest {
     private ChannelManagementService channelManagementService;
     @Mock
     private MiscUtils miscUtils;
+    @Mock
+    private PastRecordingService pastRecordingService;
 
     private ScheduleManagementService service;
 
     @BeforeEach
     void setUp() {
-        service = new ScheduleManagementService(scheduleRepository, timeUtils, recordingMapper, channelManagementService, miscUtils);
+        service = new ScheduleManagementService(scheduleRepository, timeUtils, recordingMapper, channelManagementService, miscUtils, pastRecordingService);
     }
 
     @Test
@@ -96,16 +98,18 @@ class ScheduleManagementServiceTest {
 
     @Test
     void deleteSchedule_shouldDeleteExistingSchedule() {
-        when(scheduleRepository.existsById(1L)).thenReturn(true);
+        RecordingSchedule schedule = new RecordingSchedule();
+        when(scheduleRepository.findById(1L)).thenReturn(java.util.Optional.of(schedule));
 
         service.deleteSchedule(1L);
 
+        verify(pastRecordingService).saveRecordingHistory(schedule, "DELETED_BY_USER");
         verify(scheduleRepository).deleteById(1L);
     }
 
     @Test
     void deleteSchedule_shouldThrowException_whenScheduleNotFound() {
-        when(scheduleRepository.existsById(1L)).thenReturn(false);
+        when(scheduleRepository.findById(1L)).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> service.deleteSchedule(1L))
                 .isInstanceOf(IllegalArgumentException.class)

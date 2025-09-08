@@ -142,7 +142,6 @@ class ChannelManagementServiceTest {
         String result = service.deleteChannelLink(1L);
 
         assertThat(result).isEqualTo("Test Channel");
-        verify(pastRecordingService).saveRecordingHistory(recording);
         verify(scheduleRepository).deleteAll(List.of(recording));
         verify(channelRepository).deleteById(1L);
     }
