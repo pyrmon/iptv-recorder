@@ -13,16 +13,16 @@
     <name>recorder</name>
     <description>Spring Boot based recording scheduler, that uses ffmpeg to create videos from scheduled recordings</description>
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <spring-boot.version>3.5.5</spring-boot.version>
         <jaffree.version>2024.08.29</jaffree.version>
-        <sqlite-jdbc.version>3.50.3.0</sqlite-jdbc.version>
+        <sqlite-jdbc.version>3.51.1.0</sqlite-jdbc.version>
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
-        <mockito.version>5.19.0</mockito.version>
+        <mockito.version>5.21.0</mockito.version>
         <assertj.version>3.27.4</assertj.version>
     </properties>
     <dependencies>
@@ -138,8 +138,8 @@
                         <compilerArg>-Amapstruct.defaultComponentModel=spring</compilerArg>
                         <compilerArg>-Amapstruct.unmappedTargetPolicy=IGNORE</compilerArg>
                     </compilerArgs>
-                    <source>21</source>
-                    <target>21</target>
+                    <source>25</source>
+                    <target>25</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -152,6 +152,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>me.schickel.recorder.RecorderApplication</mainClass>
+                    <jvmArguments>--enable-native-access=ALL-UNNAMED</jvmArguments>
                 </configuration>
             </plugin>
         </plugins>
