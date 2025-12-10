@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,7 +49,10 @@ class ScheduleManagementServiceTest {
     void saveSchedule_shouldSaveValidSchedule() {
         RecordingScheduleRequest request = createValidRequest();
         RecordingSchedule entity = new RecordingSchedule();
-        
+        when(scheduleRepository.findAll()).thenReturn(List.of());
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
+
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -63,7 +67,6 @@ class ScheduleManagementServiceTest {
     @Test
     void saveSchedule_shouldThrowException_whenStartTimeNotBeforeEndTime() {
         RecordingScheduleRequest request = createValidRequest();
-        
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(false);
 
         assertThatThrownBy(() -> service.saveSchedule(request))
@@ -74,7 +77,6 @@ class ScheduleManagementServiceTest {
     @Test
     void saveSchedule_shouldThrowException_whenEndTimeIsInPast() {
         RecordingScheduleRequest request = createValidRequest();
-        
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(true);
 
@@ -120,8 +122,10 @@ class ScheduleManagementServiceTest {
     void patchSchedule_shouldUpdateExistingSchedule() {
         RecordingScheduleRequest request = createValidRequest();
         RecordingSchedule entity = new RecordingSchedule();
-        
         when(scheduleRepository.existsById(1L)).thenReturn(true);
+        when(scheduleRepository.findAll()).thenReturn(List.of());
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -148,7 +152,10 @@ class ScheduleManagementServiceTest {
     void saveSchedule_shouldConvertTsToMkv() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName("test.ts");
-        
+        when(scheduleRepository.findAll()).thenReturn(List.of());
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
+
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -163,7 +170,10 @@ class ScheduleManagementServiceTest {
     void saveSchedule_shouldAddMkvExtension_whenNoExtension() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName("test");
-        
+        when(scheduleRepository.findAll()).thenReturn(List.of());
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
+
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -178,7 +188,6 @@ class ScheduleManagementServiceTest {
     void saveSchedule_shouldThrowException_whenFilenameContainsSeparator() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName("test/file.mkv");
-        
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -192,7 +201,6 @@ class ScheduleManagementServiceTest {
     void saveSchedule_shouldThrowException_whenFilenameIsNull() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName(null);
-        
         when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
         when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
         when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
@@ -200,6 +208,63 @@ class ScheduleManagementServiceTest {
         assertThatThrownBy(() -> service.saveSchedule(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid filename!");
+    }
+
+    @Test
+    void saveSchedule_shouldThrow_whenOverlappingExistingSchedule() {
+        // Existing schedule 10:00 - 11:00
+        RecordingSchedule existing = new RecordingSchedule();
+        existing.setStartTime("10:00 01/01/2025");
+        existing.setEndTime("11:00 01/01/2025");
+        existing.setFileName("existing");
+        when(scheduleRepository.findAll()).thenReturn(List.of(existing));
+
+        // New schedule 10:30 - 11:30 (overlaps)
+        RecordingScheduleRequest request = new RecordingScheduleRequest();
+        request.setStartTime("10:30 01/01/2025");
+        request.setEndTime("11:30 01/01/2025");
+        request.setM3uUrl("http://valid.url");
+        request.setFileName("new");
+
+        when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
+        when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
+        when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
+
+        when(timeUtils.parseStringToLocalDateTime("10:30 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,30));
+        when(timeUtils.parseStringToLocalDateTime("11:30 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,30));
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
+
+        assertThatThrownBy(() -> service.saveSchedule(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overlaps");
+    }
+
+    @Test
+    void saveSchedule_shouldAllowBackToBackSchedules() {
+        // Existing schedule 09:30 - 10:00
+        RecordingSchedule existing = new RecordingSchedule();
+        existing.setStartTime("09:30 01/01/2025");
+        existing.setEndTime("10:00 01/01/2025");
+        existing.setFileName("existing");
+        when(scheduleRepository.findAll()).thenReturn(List.of(existing));
+
+        // New schedule 10:00 - 11:00 (adjacent, no overlap)
+        RecordingScheduleRequest request = createValidRequest(); // 10:00 - 11:00
+        RecordingSchedule entity = new RecordingSchedule();
+
+        when(timeUtils.isBefore(request.getStartTime(), request.getEndTime())).thenReturn(true);
+        when(timeUtils.isInPast(request.getEndTime())).thenReturn(false);
+        when(miscUtils.isValidUrl(request.getM3uUrl())).thenReturn(true);
+        when(recordingMapper.toEntity(request)).thenReturn(entity);
+
+        when(timeUtils.parseStringToLocalDateTime("10:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,10,0));
+        when(timeUtils.parseStringToLocalDateTime("11:00 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,11,0));
+        when(timeUtils.parseStringToLocalDateTime("09:30 01/01/2025")).thenReturn(LocalDateTime.of(2025,1,1,9,30));
+
+        service.saveSchedule(request);
+
+        verify(scheduleRepository).save(entity);
     }
 
     private RecordingScheduleRequest createValidRequest() {

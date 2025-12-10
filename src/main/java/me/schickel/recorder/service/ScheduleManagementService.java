@@ -11,6 +11,7 @@ import me.schickel.recorder.util.TimeUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -25,7 +26,7 @@ public class ScheduleManagementService {
     private final PastRecordingService pastRecordingService;
 
     public void saveSchedule(RecordingScheduleRequest request) {
-        validateAndProcessRequest(request);
+        validateAndProcessRequest(request, null);
         RecordingSchedule entity = recordingMapper.toEntity(request);
         scheduleRepository.save(entity);
     }
@@ -50,13 +51,13 @@ public class ScheduleManagementService {
         if (!scheduleRepository.existsById(id)) {
             throw new IllegalArgumentException("Schedule not found with id: " + id);
         }
-        validateAndProcessRequest(request);
+        validateAndProcessRequest(request, id);
         RecordingSchedule entity = recordingMapper.toEntity(request);
         entity.setId(id);
         scheduleRepository.save(entity);
     }
 
-    private void validateAndProcessRequest(RecordingScheduleRequest request) {
+    private void validateAndProcessRequest(RecordingScheduleRequest request, Long excludeId) {
         // Validate times
         if (!timeUtils.isBefore(request.getStartTime(), request.getEndTime())) {
             throw new IllegalArgumentException("Start time should be before end time!");
@@ -86,8 +87,29 @@ public class ScheduleManagementService {
             throw new IllegalArgumentException("Invalid filename!");
         }
         request.setFileName(ensureMkvExtension(request.getFileName()));
+
+        // Prevent overlapping schedules (half-open intervals [start, end))
+        LocalDateTime newStart = timeUtils.parseStringToLocalDateTime(request.getStartTime());
+        LocalDateTime newEnd = timeUtils.parseStringToLocalDateTime(request.getEndTime());
+
+        List<RecordingSchedule> existingSchedules = (List<RecordingSchedule>) scheduleRepository.findAll();
+        for (RecordingSchedule existing : existingSchedules) {
+            if (excludeId != null && excludeId.equals(existing.getId())) {
+                continue; // Skip self when patching
+            }
+            LocalDateTime existStart = timeUtils.parseStringToLocalDateTime(existing.getStartTime());
+            LocalDateTime existEnd = timeUtils.parseStringToLocalDateTime(existing.getEndTime());
+            if (intervalsOverlapHalfOpen(newStart, newEnd, existStart, existEnd)) {
+                throw new IllegalArgumentException("Schedule overlaps with an existing schedule (" + existing.getFileName() + ")");
+            }
+        }
     }
-    
+
+    private boolean intervalsOverlapHalfOpen(LocalDateTime s1, LocalDateTime e1, LocalDateTime s2, LocalDateTime e2) {
+        // Treat intervals as [start, end); allow adjacency at exact boundaries
+        return s1.isBefore(e2) && s2.isBefore(e1);
+    }
+
     private boolean isValidFilename(String filename) {
         if (filename == null) return false;
         if (filename.contains(String.valueOf(File.separatorChar))) {
