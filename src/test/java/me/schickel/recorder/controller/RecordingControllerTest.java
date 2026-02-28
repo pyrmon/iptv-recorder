@@ -2,6 +2,7 @@ package me.schickel.recorder.controller;
 
 import me.schickel.recorder.dto.request.RecordingScheduleRequest;
 import me.schickel.recorder.dto.response.RecordingScheduleResponse;
+import me.schickel.recorder.service.RecordingService;
 import me.schickel.recorder.service.ScheduleManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,11 +27,14 @@ class RecordingControllerTest {
     @Mock
     private ScheduleManagementService scheduleManagementService;
 
+    @Mock
+    private RecordingService recordingService;
+
     private RecordingController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RecordingController(scheduleManagementService);
+        controller = new RecordingController(scheduleManagementService, recordingService);
     }
 
     @Test
