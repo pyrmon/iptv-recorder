@@ -95,22 +95,21 @@ public class FfmpegService {
     }
 
     private void executeRecording(Long scheduleId, String m3uUrl, String timeToRecord, Path outputPath, String codecType) {
-        FFmpegResultFuture future = null;
+        FFmpegResultFuture future;
         try {
             future = FFmpeg.atPath()
-                  .addInput(UrlInput.fromUrl(m3uUrl))
-                  .addArgument("-xerror")
-                  .addArguments("-reconnect", "5")
-                  .addArguments("-reconnect_streamed", "5")
-                  .addArguments("-reconnect_delay_max", "20")
-                  .addArguments("-fps_mode", "vfr")
-                  .addArguments("-bsf:v", codecType + "_mp4toannexb")
-                  .addArguments("-t", timeToRecord)
-                  .addArguments("-c", "copy")
-                  .addOutput(UrlOutput.toPath(outputPath))
-                  .setLogLevel(LogLevel.WARNING)
-                  .setProgressListener(progress -> {}) // Silent progress listener to suppress warning
-                  .executeAsync();
+                           .addInput(UrlInput.fromUrl(m3uUrl))
+                           .addArguments("-reconnect", "5")
+                           .addArguments("-reconnect_streamed", "5")
+                           .addArguments("-reconnect_delay_max", "20")
+                           .addArguments("-fps_mode", "vfr")
+                           .addArguments("-bsf:v", codecType + "_mp4toannexb")
+                           .addArguments("-t", timeToRecord)
+                           .addArguments("-c", "copy")
+                           .addOutput(UrlOutput.toPath(outputPath))
+                           .setLogLevel(LogLevel.WARNING)
+                           .setProgressListener(_ -> {}) // Silent progress listener to suppress warning
+                           .executeAsync();
 
             activeRecordings.put(scheduleId, future);
             future.toCompletableFuture().join();
