@@ -31,6 +31,7 @@ public class FfmpegService {
     private final RecordingServiceConfig config;
     private static final Logger logger = LoggerFactory.getLogger(FfmpegService.class);
     private final ConcurrentMap<Long, FFmpegResultFuture> activeRecordings = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, Boolean> stoppedSchedules = new ConcurrentHashMap<>();
 
     public void recordingHandler(RecordingSchedule recordingSchedule) {
         String m3uUrl = recordingSchedule.getM3uUrl();
@@ -41,11 +42,14 @@ public class FfmpegService {
         int counter = 1;
 
         while (timeUtils.parseStringToLocalDateTime(recordingSchedule.getEndTime())
-                        .isAfter(LocalDateTime.now().plusSeconds(30)) && scheduleRepository.existsById(recordingSchedule.getId())) {
+                        .isAfter(LocalDateTime.now().plusSeconds(30))
+                && !stoppedSchedules.containsKey(recordingSchedule.getId())
+                && scheduleRepository.existsById(recordingSchedule.getId())) {
             String timeToRecord = timeUtils.calculateTimeToRecord(stopTime);
             startRecording(recordingSchedule, streamCodec, m3uUrl, timeToRecord, counter);
             counter++;
         }
+        stoppedSchedules.remove(recordingSchedule.getId());
     }
 
     private void startRecording(RecordingSchedule recordingSchedule, String streamCodec, String m3uUrl, String timeToRecord, int counter) {
@@ -128,6 +132,7 @@ public class FfmpegService {
      * @return true if a recording was found and stopped, false if no active recording for this ID
      */
     public boolean stopRecording(Long scheduleId) {
+        stoppedSchedules.put(scheduleId, Boolean.TRUE);
         FFmpegResultFuture future = activeRecordings.remove(scheduleId);
         if (future == null) {
             return false;
