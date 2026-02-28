@@ -111,6 +111,24 @@ public class RecordingService {
         }
     }
 
+    public void forceStopRecording(Long id) {
+        RecordingSchedule schedule = scheduleRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Schedule not found with id: " + id));
+
+        if (!schedule.isTriggered()) {
+            throw new IllegalStateException("Schedule " + id + " is not currently recording");
+        }
+
+        boolean stopped = ffmpegService.stopRecording(id);
+        if (!stopped) {
+            logger.warn("No active ffmpeg process found for schedule {}, but it was marked as triggered", id);
+        }
+
+        pastRecordingService.saveRecordingHistory(schedule, "STOPPED_BY_USER");
+        scheduleRepository.deleteById(id);
+        logger.info("Force stopped and removed recording schedule {}: {}", id, schedule.getFileName());
+    }
+
     private List<RecordingSchedule> findNonTriggeredRecordingsStartingSoon(List<RecordingSchedule> allRecordings) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime thirtySecondsFromNow = now.plusSeconds(30);

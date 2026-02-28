@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 @Slf4j
@@ -28,6 +30,7 @@ public class FfmpegService {
     private final TimeUtils timeUtils;
     private final RecordingServiceConfig config;
     private static final Logger logger = LoggerFactory.getLogger(FfmpegService.class);
+    private final ConcurrentMap<Long, FFmpegResultFuture> activeRecordings = new ConcurrentHashMap<>();
 
     public void recordingHandler(RecordingSchedule recordingSchedule) {
         String m3uUrl = recordingSchedule.getM3uUrl();
@@ -56,9 +59,9 @@ public class FfmpegService {
         try {
             assert streamCodec != null;
             if (streamCodec.equalsIgnoreCase("h264")) {
-                executeRecording(m3uUrl, timeToRecord, outputPath, "h264");
+                executeRecording(recordingSchedule.getId(), m3uUrl, timeToRecord, outputPath, "h264");
             } else if (streamCodec.equalsIgnoreCase("hevc")) {
-                executeRecording(m3uUrl, timeToRecord, outputPath, "hevc");
+                executeRecording(recordingSchedule.getId(), m3uUrl, timeToRecord, outputPath, "hevc");
             } else {
                 logger.error("Unsupported codec: {}", streamCodec);
             }
@@ -91,26 +94,64 @@ public class FfmpegService {
         return null;
     }
 
-    private void executeRecording(String m3uUrl, String timeToRecord, Path outputPath, String codecType) {
+    private void executeRecording(Long scheduleId, String m3uUrl, String timeToRecord, Path outputPath, String codecType) {
+        FFmpegResultFuture future;
         try {
-            FFmpeg.atPath()
-                  .addInput(UrlInput.fromUrl(m3uUrl))
-                  .addArgument("-xerror")
-                  .addArguments("-reconnect", "5")
-                  .addArguments("-reconnect_streamed", "5")
-                  .addArguments("-reconnect_delay_max", "20")
-                  .addArguments("-fps_mode", "vfr")
-                  .addArguments("-bsf:v", codecType + "_mp4toannexb")
-                  .addArguments("-t", timeToRecord)
-                  .addArguments("-c", "copy")
-                  .addOutput(UrlOutput.toPath(outputPath))
-                  .setLogLevel(LogLevel.WARNING)
-                  .setProgressListener(progress -> {}) // Silent progress listener to suppress warning
-                  .execute();
+            future = FFmpeg.atPath()
+                           .addInput(UrlInput.fromUrl(m3uUrl))
+                           .addArguments("-reconnect", "5")
+                           .addArguments("-reconnect_streamed", "5")
+                           .addArguments("-reconnect_delay_max", "20")
+                           .addArguments("-fps_mode", "vfr")
+                           .addArguments("-bsf:v", codecType + "_mp4toannexb")
+                           .addArguments("-t", timeToRecord)
+                           .addArguments("-c", "copy")
+                           .addOutput(UrlOutput.toPath(outputPath))
+                           .setLogLevel(LogLevel.WARNING)
+                           .setProgressListener(_ -> {}) // Silent progress listener to suppress warning
+                           .executeAsync();
+
+            activeRecordings.put(scheduleId, future);
+            future.toCompletableFuture().join();
             logger.info("Recording complete. Output file: {}", outputPath.toAbsolutePath());
         } catch (Exception e) {
             logger.error("FFmpeg execution failed for {}: {}", outputPath.getFileName(), e.getMessage());
             // Don't throw - let the recording attempt continue or retry
+        } finally {
+            activeRecordings.remove(scheduleId);
         }
     }
+
+    /**
+     * Gracefully stops an active recording by its schedule ID.
+     * Attempts graceStop first, then forceStop if needed.
+     * @return true if a recording was found and stopped, false if no active recording for this ID
+     */
+    public boolean stopRecording(Long scheduleId) {
+        FFmpegResultFuture future = activeRecordings.remove(scheduleId);
+        if (future == null) {
+            return false;
+        }
+        try {
+            logger.info("Gracefully stopping recording for schedule {}", scheduleId);
+            future.graceStop();
+            if (!future.toCompletableFuture().isDone()) {
+                Thread.sleep(3000);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.warn("Grace stop failed for schedule {}, forcing stop", scheduleId);
+        }
+        if (!future.toCompletableFuture().isDone()) {
+            try {
+                logger.info("Force stopping recording for schedule {}", scheduleId);
+                future.forceStop();
+            } catch (Exception e) {
+                logger.error("Force stop also failed for schedule {}: {}", scheduleId, e.getMessage());
+            }
+        }
+        return true;
+    }
+
 }
