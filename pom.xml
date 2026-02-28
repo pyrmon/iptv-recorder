@@ -9,7 +9,7 @@
     </parent>
     <groupId>me.schickel</groupId>
     <artifactId>recorder</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
     <name>recorder</name>
     <description>Spring Boot based recording scheduler, that uses ffmpeg to create videos from scheduled recordings</description>
     <properties>
