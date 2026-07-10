@@ -11,7 +11,11 @@ services:
       - ./recordings:/recordings
       - ./data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail -H 'x-api-key: $API_KEY' http://localhost:8084/actuator/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail http://localhost:8084/actuator/health || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

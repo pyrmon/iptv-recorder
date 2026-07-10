@@ -31,6 +31,7 @@ public class SecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
             .securityMatcher("/**")
             .authorizeHttpRequests(registry -> registry
+                .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
