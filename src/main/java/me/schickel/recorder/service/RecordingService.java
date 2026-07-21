@@ -41,7 +41,13 @@ public class RecordingService {
             LocalDateTime endTime = timeUtils.parseStringToLocalDateTime(recording.getEndTime());
             if (now.isBefore(endTime)) {
                 logger.info("Resuming ongoing recording: {}", recording.getFileName());
-                executorConfig.executorService().submit(() -> ffmpegService.recordingHandler(recording));
+                executorConfig.executorService().submit(() -> {
+                    String status = ffmpegService.recordingHandler(recording);
+                    if (!"COMPLETED".equals(status)) {
+                        pastRecordingService.saveRecordingHistory(recording, status);
+                        scheduleRepository.deleteById(recording.getId());
+                    }
+                });
             }
         }
     }
@@ -84,7 +90,13 @@ public class RecordingService {
             
             for (RecordingSchedule recording : allRecordingsToBeExecuted) {
                 logger.info("Triggering recording {}", recording.getFileName());
-                executorConfig.executorService().submit(() -> ffmpegService.recordingHandler(recording));
+                executorConfig.executorService().submit(() -> {
+                    String status = ffmpegService.recordingHandler(recording);
+                    if (!"COMPLETED".equals(status)) {
+                        pastRecordingService.saveRecordingHistory(recording, status);
+                        scheduleRepository.deleteById(recording.getId());
+                    }
+                });
             }
             if (!allRecordingsToBeExecuted.isEmpty())
                 logger.info("Triggered {} recordings", allRecordingsToBeExecuted.size());

@@ -33,9 +33,13 @@ public class FfmpegService {
     private final ConcurrentMap<Long, FFmpegResultFuture> activeRecordings = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, Boolean> stoppedSchedules = new ConcurrentHashMap<>();
 
-    public void recordingHandler(RecordingSchedule recordingSchedule) {
+    public String recordingHandler(RecordingSchedule recordingSchedule) {
         String m3uUrl = recordingSchedule.getM3uUrl();
         String streamCodec = getStreamCodec(m3uUrl);
+        if (streamCodec == null) {
+            logger.error("Could not determine codec for {}, aborting recording", recordingSchedule.getFileName());
+            return "FAILED_CODEC_DETECTION";
+        }
         LocalDateTime endTime = timeUtils.parseStringToLocalDateTime(recordingSchedule.getEndTime());
         LocalDateTime stopTime = endTime.plusSeconds(20);
 
@@ -50,6 +54,7 @@ public class FfmpegService {
             counter++;
         }
         stoppedSchedules.remove(recordingSchedule.getId());
+        return "COMPLETED";
     }
 
     private void startRecording(RecordingSchedule recordingSchedule, String streamCodec, String m3uUrl, String timeToRecord, int counter) {
@@ -60,15 +65,13 @@ public class FfmpegService {
         }
         Path outputPath = Paths.get(decideFileName(recordingSchedule.getFileName(), counter));
 
+        if (streamCodec == null) {
+            logger.error("Could not determine codec for stream, skipping: {}", recordingSchedule.getFileName());
+            return;
+        }
+
         try {
-            assert streamCodec != null;
-            if (streamCodec.equalsIgnoreCase("h264")) {
-                executeRecording(recordingSchedule.getId(), m3uUrl, timeToRecord, outputPath, "h264");
-            } else if (streamCodec.equalsIgnoreCase("hevc")) {
-                executeRecording(recordingSchedule.getId(), m3uUrl, timeToRecord, outputPath, "hevc");
-            } else {
-                logger.error("Unsupported codec: {}", streamCodec);
-            }
+            executeRecording(recordingSchedule.getId(), m3uUrl, timeToRecord, outputPath);
         } catch (Exception e) {
             logger.error("Error recording M3U stream {}: {}", recordingSchedule.getFileName(), e.getMessage());
         }
@@ -90,24 +93,24 @@ public class FfmpegService {
 
         for (com.github.kokorin.jaffree.ffprobe.Stream stream : result.getStreams()) {
             if (stream.getCodecType() == StreamType.VIDEO) {
-                log.info("Found video stream with codec: {}", stream.getCodecName());
-                return stream.getCodecName();
+                String codec = stream.getCodecName();
+                log.info("Found video stream with codec: {}", codec);
+                return codec;
             }
         }
 
         return null;
     }
 
-    private void executeRecording(Long scheduleId, String m3uUrl, String timeToRecord, Path outputPath, String codecType) {
+    private void executeRecording(Long scheduleId, String m3uUrl, String timeToRecord, Path outputPath) {
         FFmpegResultFuture future;
         try {
             future = FFmpeg.atPath()
-                           .addInput(UrlInput.fromUrl(m3uUrl))
-                           .addArguments("-reconnect", "5")
-                           .addArguments("-reconnect_streamed", "5")
-                           .addArguments("-reconnect_delay_max", "20")
+                           .addInput(UrlInput.fromUrl(m3uUrl)
+                               .addArguments("-reconnect", "1")
+                               .addArguments("-reconnect_streamed", "1")
+                               .addArguments("-reconnect_delay_max", "20"))
                            .addArguments("-fps_mode", "vfr")
-                           .addArguments("-bsf:v", codecType + "_mp4toannexb")
                            .addArguments("-t", timeToRecord)
                            .addArguments("-c", "copy")
                            .addOutput(UrlOutput.toPath(outputPath))
