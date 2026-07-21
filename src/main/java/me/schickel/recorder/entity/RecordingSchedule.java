@@ -30,4 +30,10 @@ public class RecordingSchedule extends RecordingTask {
 
     @Column(name = "triggered", nullable = false)
     private boolean triggered;
+
+    @Column(name = "remux_to_mkv", nullable = false)
+    private boolean remuxToMkv;
+
+    @Column(name = "keep_original_ts", nullable = false)
+    private boolean keepOriginalTs = true;
 }

@@ -15,9 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -44,30 +47,41 @@ public class FfmpegService {
         LocalDateTime stopTime = endTime.plusSeconds(20);
 
         int counter = 1;
+        List<Path> recordedFiles = new ArrayList<>();
 
         while (timeUtils.parseStringToLocalDateTime(recordingSchedule.getEndTime())
                         .isAfter(LocalDateTime.now().plusSeconds(30))
                 && !stoppedSchedules.containsKey(recordingSchedule.getId())
                 && scheduleRepository.existsById(recordingSchedule.getId())) {
             String timeToRecord = timeUtils.calculateTimeToRecord(stopTime);
-            startRecording(recordingSchedule, streamCodec, m3uUrl, timeToRecord, counter);
+            Path outputPath = Paths.get(decideFileName(recordingSchedule.getFileName(), counter));
+            logger.info("Loop iteration {} for {}: timeToRecord={}s, outputPath={}", counter, recordingSchedule.getFileName(), timeToRecord, outputPath);
+            startRecording(recordingSchedule, m3uUrl, timeToRecord, outputPath);
+            logger.info("startRecording returned for iteration {} of {}", counter, recordingSchedule.getFileName());
+            if (Files.exists(outputPath)) {
+                recordedFiles.add(outputPath);
+            }
             counter++;
         }
+        logger.info("Exited recording loop for {} after {} iterations. stopped={}, exists={}",
+            recordingSchedule.getFileName(), counter - 1,
+            stoppedSchedules.containsKey(recordingSchedule.getId()),
+            scheduleRepository.existsById(recordingSchedule.getId()));
         stoppedSchedules.remove(recordingSchedule.getId());
+
+        if (recordingSchedule.isRemuxToMkv()) {
+            remuxToMkv(recordedFiles, recordingSchedule.isKeepOriginalTs());
+        }
+
         return "COMPLETED";
     }
 
-    private void startRecording(RecordingSchedule recordingSchedule, String streamCodec, String m3uUrl, String timeToRecord, int counter) {
+    private void startRecording(RecordingSchedule recordingSchedule, String m3uUrl, String timeToRecord, Path outputPath) {
+        int counter = extractCounter(outputPath);
         if (counter == 1) {
             logger.info("Starting recording for schedule with filename {} (duration: {}s)", recordingSchedule.getFileName(), timeToRecord);
         } else {
             logger.info("Retrying recording for schedule with filename {} for the {} time (remaining: {}s)", recordingSchedule.getFileName(), counter, timeToRecord);
-        }
-        Path outputPath = Paths.get(decideFileName(recordingSchedule.getFileName(), counter));
-
-        if (streamCodec == null) {
-            logger.error("Could not determine codec for stream, skipping: {}", recordingSchedule.getFileName());
-            return;
         }
 
         try {
@@ -77,12 +91,26 @@ public class FfmpegService {
         }
     }
 
+    private int extractCounter(Path outputPath) {
+        String name = outputPath.getFileName().toString();
+        String nameWithoutExt = name.substring(0, name.lastIndexOf('.'));
+        int underscoreIdx = nameWithoutExt.lastIndexOf('_');
+        if (underscoreIdx > 0) {
+            try {
+                return Integer.parseInt(nameWithoutExt.substring(underscoreIdx + 1));
+            } catch (NumberFormatException e) {
+                return 1;
+            }
+        }
+        return 1;
+    }
+
     private String decideFileName(String fileName, int counter) {
         if (counter == 1) {
             return config.getRecordingFolderPrefix() + fileName;
         } else {
-            String fileNameWithoutExtension = fileName.substring(0, fileName.length() - 4);
-            String extension = fileName.substring(fileName.length() - 4);
+            String fileNameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
+            String extension = fileName.substring(fileName.lastIndexOf('.'));
             return config.getRecordingFolderPrefix() + fileNameWithoutExtension + "_" + counter + extension;
         }
     }
@@ -105,27 +133,63 @@ public class FfmpegService {
     private void executeRecording(Long scheduleId, String m3uUrl, String timeToRecord, Path outputPath) {
         FFmpegResultFuture future;
         try {
+            logger.info("Launching ffmpeg for scheduleId={}, duration={}s, output={}", scheduleId, timeToRecord, outputPath);
             future = FFmpeg.atPath()
                            .addInput(UrlInput.fromUrl(m3uUrl)
                                .addArguments("-reconnect", "1")
                                .addArguments("-reconnect_streamed", "1")
-                               .addArguments("-reconnect_delay_max", "20"))
-                           .addArguments("-fps_mode", "vfr")
+                               .addArguments("-reconnect_delay_max", "5")
+                               .addArguments("-reconnect_on_network_error", "1")
+                               .addArguments("-rw_timeout", "15000000")
+                               .addArguments("-fflags", "+genpts+igndts")
+                               .addArguments("-analyzeduration", "10000000")
+                               .addArguments("-probesize", "10000000"))
                            .addArguments("-t", timeToRecord)
                            .addArguments("-c", "copy")
                            .addOutput(UrlOutput.toPath(outputPath))
-                           .setLogLevel(LogLevel.WARNING)
-                           .setProgressListener(_ -> {}) // Silent progress listener to suppress warning
+                           .setLogLevel(LogLevel.INFO)
+                           .setProgressListener(_ -> {})
                            .executeAsync();
 
             activeRecordings.put(scheduleId, future);
+            logger.info("ffmpeg process started for scheduleId={}, waiting for completion...", scheduleId);
             future.toCompletableFuture().join();
             logger.info("Recording complete. Output file: {}", outputPath.toAbsolutePath());
         } catch (Exception e) {
-            logger.error("FFmpeg execution failed for {}: {}", outputPath.getFileName(), e.getMessage());
-            // Don't throw - let the recording attempt continue or retry
+            logger.error("FFmpeg execution failed for {}: {}", outputPath.getFileName(), e.getMessage(), e);
         } finally {
             activeRecordings.remove(scheduleId);
+            logger.info("executeRecording exiting for scheduleId={}, file={}", scheduleId, outputPath.getFileName());
+        }
+    }
+
+    private void remuxToMkv(List<Path> tsFiles, boolean keepOriginalTs) {
+        for (Path tsFile : tsFiles) {
+            if (!Files.exists(tsFile)) {
+                continue;
+            }
+            String tsFileName = tsFile.getFileName().toString();
+            String mkvFileName = tsFileName.substring(0, tsFileName.lastIndexOf('.')) + ".mkv";
+            Path mkvPath = tsFile.getParent().resolve(mkvFileName);
+
+            try {
+                logger.info("Remuxing {} to {}", tsFileName, mkvFileName);
+                FFmpeg.atPath()
+                      .addInput(UrlInput.fromPath(tsFile))
+                      .addArguments("-c", "copy")
+                      .addOutput(UrlOutput.toPath(mkvPath))
+                      .setLogLevel(LogLevel.WARNING)
+                      .setOverwriteOutput(true)
+                      .execute();
+                logger.info("Remux complete: {}", mkvPath.toAbsolutePath());
+
+                if (!keepOriginalTs) {
+                    Files.deleteIfExists(tsFile);
+                    logger.info("Deleted original TS file: {}", tsFile.toAbsolutePath());
+                }
+            } catch (Exception e) {
+                logger.error("Remux failed for {}: {}", tsFileName, e.getMessage());
+            }
         }
     }
 

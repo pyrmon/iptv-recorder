@@ -1,12 +1,14 @@
 CREATE TABLE recording_schedules
 (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    start_time TEXT NOT NULL,
-    end_time   TEXT NOT NULL,
-    m3u_url    TEXT NOT NULL,
-    channel_name TEXT,
-    file_name  TEXT NOT NULL,
-    triggered  INT  NOT NULL DEFAULT 0
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_time       TEXT NOT NULL,
+    end_time         TEXT NOT NULL,
+    m3u_url          TEXT NOT NULL,
+    channel_name     TEXT,
+    file_name        TEXT NOT NULL,
+    triggered        INT  NOT NULL DEFAULT 0,
+    remux_to_mkv     INT  NOT NULL DEFAULT 0,
+    keep_original_ts INT  NOT NULL DEFAULT 1
 );
 
 CREATE TABLE tvchannel_urls

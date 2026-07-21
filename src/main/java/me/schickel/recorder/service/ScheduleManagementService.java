@@ -86,7 +86,7 @@ public class ScheduleManagementService {
         if (!isValidFilename(request.getFileName())) {
             throw new IllegalArgumentException("Invalid filename!");
         }
-        request.setFileName(ensureMkvExtension(request.getFileName()));
+        request.setFileName(ensureTsExtension(request.getFileName()));
 
         // Prevent overlapping schedules (half-open intervals [start, end))
         LocalDateTime newStart = timeUtils.parseStringToLocalDateTime(request.getStartTime());
@@ -122,12 +122,12 @@ public class ScheduleManagementService {
         return lastDot == -1 || (lastDot > 0 && Character.isLetterOrDigit(filename.charAt(lastDot - 1)));
     }
     
-    private String ensureMkvExtension(String filename) {
-        if (filename.endsWith(".mp4") || filename.endsWith(".ts")) {
-            return filename.substring(0, filename.lastIndexOf(".")) + ".mkv";
+    private String ensureTsExtension(String filename) {
+        if (filename.endsWith(".mkv") || filename.endsWith(".mp4")) {
+            return filename.substring(0, filename.lastIndexOf(".")) + ".ts";
         }
-        if (!filename.endsWith(".mkv")) {
-            return filename + ".mkv";
+        if (!filename.endsWith(".ts")) {
+            return filename + ".ts";
         }
         return filename;
     }

@@ -15,4 +15,3 @@ public interface RecordingMapper {
     
     RecordingScheduleResponse toResponse(RecordingSchedule entity);
 }
-

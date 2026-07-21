@@ -61,7 +61,7 @@ class ScheduleManagementServiceTest {
         service.saveSchedule(request);
 
         verify(scheduleRepository).save(entity);
-        assertThat(request.getFileName()).endsWith(".mkv");
+        assertThat(request.getFileName()).endsWith(".ts");
     }
 
     @Test
@@ -149,7 +149,7 @@ class ScheduleManagementServiceTest {
     }
 
     @Test
-    void saveSchedule_shouldConvertTsToMkv() {
+    void saveSchedule_shouldKeepTsExtension() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName("test.ts");
         when(scheduleRepository.findAll()).thenReturn(List.of());
@@ -163,11 +163,11 @@ class ScheduleManagementServiceTest {
 
         service.saveSchedule(request);
 
-        assertThat(request.getFileName()).isEqualTo("test.mkv");
+        assertThat(request.getFileName()).isEqualTo("test.ts");
     }
 
     @Test
-    void saveSchedule_shouldAddMkvExtension_whenNoExtension() {
+    void saveSchedule_shouldAddTsExtension_whenNoExtension() {
         RecordingScheduleRequest request = createValidRequest();
         request.setFileName("test");
         when(scheduleRepository.findAll()).thenReturn(List.of());
@@ -181,7 +181,7 @@ class ScheduleManagementServiceTest {
 
         service.saveSchedule(request);
 
-        assertThat(request.getFileName()).isEqualTo("test.mkv");
+        assertThat(request.getFileName()).isEqualTo("test.ts");
     }
 
     @Test

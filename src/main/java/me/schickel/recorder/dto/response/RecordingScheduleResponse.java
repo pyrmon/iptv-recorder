@@ -11,4 +11,6 @@ public class RecordingScheduleResponse {
     private String channel;
     private String fileName;
     private boolean triggered;
+    private boolean remuxToMkv;
+    private boolean keepOriginalTs;
 }

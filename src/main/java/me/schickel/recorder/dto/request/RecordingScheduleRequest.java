@@ -22,4 +22,8 @@ public class RecordingScheduleRequest {
     
     @NotBlank(message = "File name is required")
     private String fileName;
+
+    private boolean remuxToMkv = false;
+
+    private boolean keepOriginalTs = true;
 }

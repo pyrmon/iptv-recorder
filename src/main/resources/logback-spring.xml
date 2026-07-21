@@ -13,7 +13,7 @@
     <logger name="org.springframework.data" level="WARN"/>
     
     <!-- Reduce FFmpeg logging -->
-    <logger name="com.github.kokorin.jaffree" level="ERROR"/>
+    <logger name="com.github.kokorin.jaffree" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
